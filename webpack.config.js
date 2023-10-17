@@ -1,12 +1,12 @@
 var path = require('path');
 
 module.exports = {
-  entry: './src/JsWebm.js',
+  entry: './src/MkvDemuxer.js',
   mode: 'production',
   output: {
-    library: 'JsWebm',
+    library: 'MkvDemuxer',
     libraryTarget: 'commonjs2',
     path: path.resolve(__dirname, 'dist'),
-    filename: 'JsWebm.js'
+    filename: 'MkvDemuxer.js'
   }
 };

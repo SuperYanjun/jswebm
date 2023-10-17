@@ -1,6 +1,6 @@
 {
   "name": "mkv-demuxer",
-  "version": "0.0.1-3",
+  "version": "0.0.1-5",
   "keywords": [
     "mkv",
     "webm"
@@ -12,7 +12,7 @@
   },
   "contributors": [],
   "license": "MIT",
-  "main": "dist/JsWebm.js",
+  "main": "dist/MkvDemuxer.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/SuperYanjun/jswebm"

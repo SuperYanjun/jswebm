@@ -9,7 +9,7 @@ const {findClosestNumber, findNumber} = require('./utils')
 /**
  * @classdesc Wrapper class to handle webm demuxing
  */
-class JsWebm {
+class MkvDemuxer {
   constructor() {
     this.dataInterface = new DataInterface(this);
     this.tempElementHeader = new ElementHeader(-1, -1, -1, -1);
@@ -189,11 +189,11 @@ class JsWebm {
 
   async getMeta() {
     await this.getElementPositions();
-    console.log("seekhead loaded", this.seekHead);
+    // console.log("seekhead loaded", this.seekHead);
     await this.getSegmentInfo();
-    console.log("segmentInfo loaded", this.segmentInfo);
+    // console.log("segmentInfo loaded", this.segmentInfo);
     await this.getTracks();
-    console.log("tracks loaded", this.tracks);
+    // console.log("tracks loaded", this.tracks);
     if (!this.isMetaLoaded) {
       this.validateMetadata();
     }
@@ -203,18 +203,18 @@ class JsWebm {
       audioFormat: this.audioFormat,
       videoFormat: this.videoFormat,
     };
-    console.log("meta loaded", meta);
+    // console.log("meta loaded", meta);
     return meta;
   }
   async getData() {
     if (!this.isMetaLoaded) {
-      console.log("need to load meta");
+      // console.log("need to load meta");
       await this.getMeta();
     }
     await this.getCues();
-    console.log("cues loaded", this.cues);
+    // console.log("cues loaded", this.cues);
     await this.getClusters();
-    console.log("clusters loaded", this.videoPackets);
+    // console.log("clusters loaded", this.videoPackets);
     // todo: duration
     const data = {
       cues: this.cues,
@@ -226,11 +226,11 @@ class JsWebm {
   }
   async seekFrame(timestamp) {
     if (!this.isDataLoaded) {
-      console.log("need to load data");
+      // console.log("need to load data");
       await this.getData();
     }
     const frame = this.seek(timestamp);
-    console.log("seek frame", timestamp, frame);
+    // console.log("seek frame", timestamp, frame);
     return frame;
   }
   seek(timestamp) {
@@ -554,4 +554,4 @@ class JsWebm {
   }
 }
 
-module.exports = JsWebm;
+module.exports = MkvDemuxer;
