@@ -81,27 +81,27 @@ class SimpleBlock {
     this.track = this.trackEntries[this.trackNumber - 1];
   }
 
-  load() {
+  async load() {
     var dataInterface = this.dataInterface;
     if (this.loaded) {
       throw new Error('ALREADY LOADED');
     }
 
     if (this.trackNumber === null) {
-      this.trackNumber = dataInterface.readVint();
+      this.trackNumber = await dataInterface.readVint();
       if (this.trackNumber === null)
         return null;
       this.loadTrack();
     }
 
     if (this.timeCode === null) {
-      this.timeCode = dataInterface.readUnsignedInt(2);//Be signed for some reason?
+      this.timeCode = await dataInterface.readUnsignedInt(2);//Be signed for some reason?
       if (this.timeCode === null)
         return null;
     }
 
     if (this.flags === null) {/// FIX THIS
-      this.flags = dataInterface.readUnsignedInt(1);
+      this.flags = await dataInterface.readUnsignedInt(1);
       if (this.flags === null)
         return null;
 
@@ -114,7 +114,8 @@ class SimpleBlock {
 
     if (!this.headerSize)
       this.headerSize = dataInterface.offset - this.dataOffset;
-
+    let startPosition
+    let endPosition
     switch (this.lacing) {
       case FIXED_LACING:
         if (!this.frameLength) {
@@ -123,13 +124,15 @@ class SimpleBlock {
             throw "INVALID FRAME LENGTH " + this.frameLength;
         }
         if (!this.lacedFrameCount) {
-          this.lacedFrameCount = dataInterface.readUnsignedInt(1);
+          this.lacedFrameCount = await dataInterface.readUnsignedInt(1);
           if (this.lacedFrameCount === null)
             return null;
           this.lacedFrameCount++;
         }
 
-        var tempFrame = dataInterface.getBinary(this.frameLength - 1);
+        startPosition = dataInterface.offset
+        var tempFrame = await dataInterface.getBinary(this.frameLength - 1);
+        endPosition = dataInterface.offset
         if (tempFrame === null) {
           //if (dataInterface.usingBufferedRead === false)
           //    throw "SHOULD BE BUFFERED READ";
@@ -148,15 +151,21 @@ class SimpleBlock {
         for (var i = 0; i < this.lacedFrameCount; i++) {
           if (this.track.trackType === 1) {
             this.videoPackets.push({//This could be improved
-              data: tempFrame.slice(i * this.fixedFrameLength, i * this.fixedFrameLength + this.fixedFrameLength),
+              // data: tempFrame.slice(i * this.fixedFrameLength, i * this.fixedFrameLength + this.fixedFrameLength),
+              start: startPosition,
+              end: endPosition,
               timestamp: timeStamp,
               keyframeTimestamp: timeStamp,
-              isKeyframe: this.keyFrame
+              isKeyframe: this.keyFrame,
+              size: tempFrame.byteLength
             });
           } else if (this.track.trackType === 2) {
             this.audioPackets.push({//This could be improved
-              data: tempFrame.slice(i * this.fixedFrameLength, i * this.fixedFrameLength + this.fixedFrameLength),
-              timestamp: timeStamp
+              // data: tempFrame.slice(i * this.fixedFrameLength, i * this.fixedFrameLength + this.fixedFrameLength),
+              start: startPosition,
+              end: endPosition,
+              timestamp: timeStamp,
+              size: tempFrame.byteLength
             });
           }
         }
@@ -169,13 +178,13 @@ class SimpleBlock {
             throw "INVALID FRAME LENGTH " + this.frameLength;
         }
         if (!this.lacedFrameCount) {
-          this.lacedFrameCount = dataInterface.readUnsignedInt(1);
+          this.lacedFrameCount = await dataInterface.readUnsignedInt(1);
           if (this.lacedFrameCount === null)
             return null;
           this.lacedFrameCount++;
         }
         if (!this.firstLacedFrameSize) {
-          var firstLacedFrameSize = this.dataInterface.readVint();
+          var firstLacedFrameSize = await this.dataInterface.readVint();
           if (firstLacedFrameSize !== null) {
             this.firstLacedFrameSize = firstLacedFrameSize;
             this.ebmlLacedSizes.push(this.firstLacedFrameSize);
@@ -188,7 +197,7 @@ class SimpleBlock {
         }
 
         while (this.tempCounter < this.lacedFrameCount - 1) {
-          var frameSize = dataInterface.readLacingSize();
+          var frameSize = await dataInterface.readLacingSize();
           if (frameSize === null)
             return null;
           this.ebmlLacedSizes.push(frameSize);
@@ -211,7 +220,10 @@ class SimpleBlock {
           this.ebmlLacedSizesParsed = true;
           this.ebmlTotalSize = total + lastSize;
         }
-        var tempFrame = dataInterface.getBinary(this.lacedFrameDataSize);
+        startPosition = dataInterface.offset
+        var tempFrame = await dataInterface.getBinary(this.lacedFrameDataSize);
+        endPosition = dataInterface.offset
+        
         if (tempFrame === null) {
           return null;
         }
@@ -228,15 +240,21 @@ class SimpleBlock {
         for (var i = 0; i < this.lacedFrameCount; i++) {
           if (this.track.trackType === 1) {
             this.videoPackets.push({//This could be improved
-              data: tempFrame.slice(start, end),
+              // data: tempFrame.slice(start, end),
+              start: startPosition,
+              end: endPosition,
               timestamp: timeStamp,
               keyframeTimestamp: timeStamp,
-              isKeyframe: this.keyFrame
+              isKeyframe: this.keyFrame,
+              size: tempFrame.byteLength
             });
           } else if (this.track.trackType === 2) {
             this.audioPackets.push({//This could be improved
-              data: tempFrame.slice(start, end),
-              timestamp: timeStamp
+              // data: tempFrame.slice(start, end),
+              start: startPosition,
+              end: endPosition,
+              timestamp: timeStamp,
+              size: tempFrame.byteLength
             });
           }
 
@@ -262,8 +280,9 @@ class SimpleBlock {
           if (this.frameLength <= 0)
             throw "INVALID FRAME LENGTH " + this.frameLength;
         }
-
-        var tempFrame = dataInterface.getBinary(this.frameLength);
+        startPosition = this.dataInterface.offset
+        var tempFrame = await dataInterface.getBinary(this.frameLength);
+        endPosition = this.dataInterface.offset
         if (tempFrame === null) {
           //if (dataInterface.usingBufferedRead === false)
           //    throw "SHOULD BE BUFFERED READ " + dataInterface.offset;
@@ -287,15 +306,21 @@ class SimpleBlock {
 
         if (this.track.trackType === 1) {
           this.videoPackets.push({//This could be improved
-            data: tempFrame,
+            // data: tempFrame,
+            start: startPosition,
+            end: endPosition,
             timestamp: timeStamp,
             keyframeTimestamp: timeStamp,
-            isKeyframe: this.keyFrame
+            isKeyframe: this.keyFrame,
+            size: tempFrame.byteLength
           });
         } else if (this.track.trackType === 2) {
           this.audioPackets.push({//This could be improved
-            data: tempFrame,
-            timestamp: timeStamp
+            // data: tempFrame,
+            start: startPosition,
+            end: endPosition,
+            timestamp: timeStamp,
+            size: tempFrame.byteLength
           });
         }
 

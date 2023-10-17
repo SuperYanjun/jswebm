@@ -16,11 +16,11 @@ class SegmentInfo {
     this.dateUTC;
   }
 
-  load() {
+  async load() {
     var end = this.end;
     while (this.dataInterface.offset < end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
@@ -28,7 +28,7 @@ class SegmentInfo {
       switch (this.currentElement.id) {
         //TODO add duration and title
         case 0x2AD7B1: { // TimeCodeScale
-          var timecodeScale = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var timecodeScale = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (timecodeScale !== null) {
             this.timecodeScale = timecodeScale;
           } else {
@@ -37,14 +37,14 @@ class SegmentInfo {
           break;
         }
         case 0x4D80: // Muxing App 
-          var muxingApp = this.dataInterface.readString(this.currentElement.size);
+          var muxingApp = await this.dataInterface.readString(this.currentElement.size);
           if (muxingApp !== null)
             this.muxingApp = muxingApp;
           else
             return null;
           break;
         case 0x5741: // writing App 
-          var writingApp = this.dataInterface.readString(this.currentElement.size);
+          var writingApp = await this.dataInterface.readString(this.currentElement.size);
           if (writingApp !== null)
             this.writingApp = writingApp;
           else
@@ -52,7 +52,7 @@ class SegmentInfo {
           break;
 
         case 0x7BA9: // title
-          var title = this.dataInterface.readString(this.currentElement.size);
+          var title = await this.dataInterface.readString(this.currentElement.size);
           if (title !== null)
             this.title = title;
           else
@@ -60,7 +60,7 @@ class SegmentInfo {
           break;
         case 0x73A4: // segmentUID
           // TODO, LOAD THIS AS A BINARY ARRAY, SHOULD BE 128 BIT UNIQUE ID
-          var segmentUID = this.dataInterface.readString(this.currentElement.size);
+          var segmentUID = await this.dataInterface.readString(this.currentElement.size);
           if (segmentUID !== null)
             this.segmentUID = segmentUID;
           else
@@ -68,7 +68,7 @@ class SegmentInfo {
           break;
 
         case 0x4489: // duration
-          var duration = this.dataInterface.readFloat(this.currentElement.size);
+          var duration = await this.dataInterface.readFloat(this.currentElement.size);
           if (duration !== null)
             this.duration = duration;
           else
@@ -76,7 +76,7 @@ class SegmentInfo {
           break;
 
         case 0x4461: // DateUTC
-          var dateUTC = this.dataInterface.readDate(this.currentElement.size);
+          var dateUTC = await this.dataInterface.readDate(this.currentElement.size);
           if (dateUTC !== null)
             this.dateUTC = dateUTC;
           else
@@ -84,7 +84,7 @@ class SegmentInfo {
           break;
 
         case 0xbf: // CRC-32
-          var crc = this.dataInterface.getBinary(this.currentElement.size);
+          var crc = await this.dataInterface.getBinary(this.currentElement.size);
           if (crc !== null)
             crc;
           //this.docTypeReadVersion = docTypeReadVersion;

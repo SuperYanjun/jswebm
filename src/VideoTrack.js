@@ -21,16 +21,16 @@ class VideoTrack extends Track {
     this.pixelCropRight = 0;
   }
 
-  load() {
+  async load() {
     while (this.dataInterface.offset < this.end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null) return null;
       }
       switch (this.currentElement.id) {
         // TODO add color
         case 0xB0: { // Pixel width
-          const width = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const width = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (width !== null) {
             this.width = width;
           } else {
@@ -39,7 +39,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0xBA: { // Pixel Height
-          const height = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const height = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (height !== null) {
             this.height = height;
           } else {
@@ -48,7 +48,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x54B0: { // Display width
-          const displayWidth = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const displayWidth = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (displayWidth !== null) {
             this.displayWidth = displayWidth;
           } else {
@@ -57,7 +57,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x54BA: { // Display height
-          const displayHeight = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const displayHeight = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (displayHeight !== null) {
             this.displayHeight = displayHeight;
           } else {
@@ -66,7 +66,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x54B2: { // Display unit
-          const displayUnit = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const displayUnit = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (displayUnit !== null) {
             this.displayUnit = displayUnit;
           } else {
@@ -75,7 +75,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x53B8: { // Stereo mode
-          const stereoMode = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const stereoMode = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (stereoMode !== null) {
             this.stereoMode = stereoMode;
           } else {
@@ -84,7 +84,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x2383E3: { // FRAME RATE - NEEDS TO BE FLOAT
-          const frameRate = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const frameRate = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (frameRate !== null) {
             this.frameRate = frameRate;
           } else {
@@ -93,7 +93,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x9A: { // FlagInterlaced
-          const flagInterlaced = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const flagInterlaced = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (flagInterlaced !== null) {
             this.flagInterlaced = flagInterlaced;
           } else {
@@ -102,7 +102,7 @@ class VideoTrack extends Track {
           break;
         }
         case 0x55B0: { // Color
-          const colours = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const colours = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           break;
         }
         default:

@@ -38,7 +38,7 @@ class DataInterface {
     this.tempResult = null;
     this.tempCounter = INITIAL_COUNTER;
     this.usingBufferedRead = false;
-    this.dataBuffers = [];
+    this.dataBufferOffsets = [];
 
     /**
      * Returns the bytes left in the current buffer
@@ -75,20 +75,41 @@ class DataInterface {
     this.tempFloat32 = new DataView(new ArrayBuffer(4));
   }
 
-  recieveInput(data) {
-    if (this.currentBuffer === null) {
-      this.currentBuffer = new DataView(data);
-      this.internalPointer = 0;
-    } else {
-      //queue it for later
-      this.dataBuffers.push(new DataView(data));
+  async recieveInput() {
+    this.filePieceSize = 1 * 1024 * 1024;
+    let filePiece;
+    if (this.demuxer.currentFileOffset < this.demuxer.fileSize) {
+      const nextOffset =
+        this.filePieceSize + this.demuxer.currentFileOffset >=
+        this.demuxer.fileSize
+          ? this.demuxer.fileSize
+          : this.filePieceSize + this.demuxer.currentFileOffset;
+      if (this.currentBuffer === null) {
+        const currentRange = [this.demuxer.currentFileOffset, nextOffset];
+        filePiece = await this.demuxer.file
+          .slice(currentRange[0], currentRange[1])
+          .arrayBuffer();
+        this.currentBuffer = new DataView(filePiece);
+        this.internalPointer = 0;
+      } else {
+        this.dataBufferOffsets.push([this.demuxer.currentFileOffset, nextOffset]);
+      }
+      this.demuxer.currentFileOffset = nextOffset;
     }
   }
 
-  popBuffer() {
+  // 取buffer到currentBuffer，重置internalPointer
+  async popBuffer() {
     if (this.remainingBytes === 0) {
-      if (this.dataBuffers.length > 0) {
-        this.currentBuffer = this.dataBuffers.shift();
+      if (this.dataBufferOffsets.length > 0) {
+        const currentRange = this.dataBufferOffsets.shift();
+        const filePiece = await this.demuxer.file
+          .slice(currentRange[0], currentRange[1])
+          .arrayBuffer();
+        this.currentBuffer = new DataView(filePiece);
+      } else if (this.offset < this.demuxer.fileSize) {
+        await this.recieveInput();
+        await this.popBuffer();
       } else {
         this.currentBuffer = null;
       }
@@ -100,7 +121,10 @@ class DataInterface {
     return this.readSignedInt(size);
   }
 
-  readId() {
+  // 根据首个八位位组的宽度读取字节，返回出去
+  // 修改tempElementOffset，增加overallPointer和internalPointer
+  // 修改tempOctet，tempOctetWidth，tempByteCounter，tempByteBuffer，并重置
+  async readId() { 
     if (!this.currentBuffer)
       return null; //Nothing to parse
     if (!this.tempOctet) {
@@ -110,7 +134,7 @@ class DataInterface {
       this.tempOctet = this.currentBuffer.getUint8(this.internalPointer);
       this.incrementPointers(1);
       this.tempOctetWidth = this.calculateOctetWidth();
-      this.popBuffer();
+      await this.popBuffer();
     }
 
     //We will have at least one byte to read
@@ -124,12 +148,12 @@ class DataInterface {
       if (this.tempByteCounter === 0) {
         this.tempByteBuffer = this.tempOctet;
       } else {
-        tempByte = this.readByte();
+        tempByte = await this.readByte();
         this.tempByteBuffer = (this.tempByteBuffer << 8) | tempByte;
       }
 
       this.tempByteCounter++;
-      this.popBuffer();
+      await this.popBuffer();
     }
 
     var result = this.tempByteBuffer;
@@ -140,22 +164,31 @@ class DataInterface {
     return result;
   }
 
-  readLacingSize() {
-    var vint = this.readVint();
+  // 读取除了lace头的数据
+  async readLacingSize() {
+    var vint = await this.readVint();
     if (vint === null) {
       return null;
     } else {
       switch (this.lastOctetWidth) {
+        // 1xxx xxxx
         case 1:
+          // 2 ** 6 - 1
           vint -= 63;
           break;
+        // 01xx xxxx xxxx xxxx
         case 2:
+          // 2 ** 13 - 1
           vint -= 8191;
           break;
+        // 001x xxxx xxxx xxxx xxxx xxxx
         case 3:
+          // 2 ** 20 - 1
           vint -= 1048575;
           break;
+        // 0001 xxxx xxxx xxxx xxxx xxxx xxxx xxxx
         case 4:
+          // 2 ** 27 - 1
           vint -= 134217727;
           break;
       }
@@ -163,7 +196,10 @@ class DataInterface {
     return vint;
   }
 
-  readVint() {
+  // 根据首个八位位组的宽度读取字节,返回出去
+  // 增加overallPointer和internalPointer，
+  // 修改tempOctet，tempOctetWidth，tempByteCounter，tempByteBuffer，并重置
+  async readVint() {
     if (!this.currentBuffer)
       return null; //Nothing to parse
     if (!this.tempOctet) {
@@ -172,7 +208,7 @@ class DataInterface {
       this.tempOctet = this.currentBuffer.getUint8(this.internalPointer);
       this.incrementPointers(1);
       this.tempOctetWidth = this.calculateOctetWidth();
-      this.popBuffer();
+      await this.popBuffer();
     }
 
     if (!this.tempByteCounter)
@@ -186,11 +222,11 @@ class DataInterface {
         var mask = ((0xFF << tempOctetWidth) & 0xFF) >> tempOctetWidth;
         this.tempByteBuffer = this.tempOctet & mask;
       } else {
-        tempByte = this.readByte();
+        tempByte = await this.readByte();
         this.tempByteBuffer = (this.tempByteBuffer << 8) | tempByte;
       }
       this.tempByteCounter++;
-      this.popBuffer();
+      await this.popBuffer();
     }
 
     var result = this.tempByteBuffer;
@@ -207,7 +243,7 @@ class DataInterface {
    * Use this function to read a vint with more overhead by saving the state on each step
    * @returns {number | null}
    */
-  bufferedReadVint() {
+  async bufferedReadVint() {
     //We will have at least one byte to read
     var tempByte;
     if (!this.tempByteCounter)
@@ -219,11 +255,11 @@ class DataInterface {
         var mask = ((0xFF << this.tempOctetWidth) & 0xFF) >> this.tempOctetWidth;
         this.tempByteBuffer = this.tempOctet & mask;
       } else {
-        tempByte = this.readByte();
+        tempByte = await this.readByte();
         this.tempByteBuffer = (this.tempByteBuffer << 8) | tempByte;
       }
       this.tempByteCounter++;
-      this.popBuffer();
+      await this.popBuffer();
     }
     var result = this.tempByteBuffer;
     this.tempByteCounter = null;
@@ -246,7 +282,7 @@ class DataInterface {
    * Use this function to implement a more efficient vint reading if there are enough bytes in the buffer
    * @returns {Number|null} 
    */
-  forceReadVint() {
+  async forceReadVint() {
     var result;
     switch (this.tempOctetWidth) {
       case 1:
@@ -292,46 +328,49 @@ class DataInterface {
         break;
     }
 
-    this.popBuffer();
-    this.tempOctetWidth = null;
+      await this.popBuffer();
+      this.tempOctetWidth = null;
     this.tempOctet = null;
     return result;
   }
 
-
-  readByte() {
+  // 读取一个字节，返回回去
+  // 修改了internalPointer和overallPointer
+  async readByte() {
     if (!this.currentBuffer) {
       console.error("READING OUT OF BOUNDS");
     }
     var byteToRead = this.currentBuffer.getUint8(this.internalPointer);
     this.incrementPointers(1);
-    this.popBuffer();
-    //console.warn("read byte");
+    await this.popBuffer();
     return byteToRead;
   }
 
-  readSignedByte() {
+  // 读取一个字节，返回回去
+  // 修改了internalPointer和overallPointer
+  async readSignedByte() {
     if (!this.currentBuffer)
       console.error('READING OUT OF BOUNDS');
     var byteToRead = this.currentBuffer.getInt8(this.internalPointer);
     this.incrementPointers(1);
-    this.popBuffer();
+    await this.popBuffer();
     //console.warn("read signed byte");
     return byteToRead;
   }
 
-  peekElement() {
+  // 创建elementheader
+  async peekElement() {
     if (!this.currentBuffer)
       return null; //Nothing to parse
     //check if we return an id
     if (!this.tempElementId) {
-      this.tempElementId = this.readId();
+      this.tempElementId = await this.readId();
       if (this.tempElementId === null)
         return null;
     }
 
     if (!this.tempElementSize) {
-      this.tempElementSize = this.readVint();
+      this.tempElementSize = await this.readVint();
       if (this.tempElementSize === null)
         return null;
     }
@@ -347,18 +386,18 @@ class DataInterface {
   /**
    * sets the information on an existing element without creating a new objec
    */
-  peekAndSetElement(element) {
+  async peekAndSetElement(element) {
     if (!this.currentBuffer)
       return null; //Nothing to parse
     //check if we return an id
     if (!this.tempElementId) {
-      this.tempElementId = this.readId();
+      this.tempElementId = await this.readId();
       if (this.tempElementId === null)
         return null;
     }
 
     if (!this.tempElementSize) {
-      this.tempElementSize = this.readVint();
+      this.tempElementSize = await this.readVint();
       if (this.tempElementSize === null)
         return null;
     }
@@ -385,7 +424,8 @@ class DataInterface {
    * TODO: Make this more efficient with skipping over different buffers, add stricter checking
    * @param {number} bytesToSkip
    */
-  skipBytes(bytesToSkip) {
+  // 跳过固定数量的字节
+  async skipBytes(bytesToSkip) {
     var chunkToErase = 0;
     var counter = 0;
     if (this.tempCounter === INITIAL_COUNTER)
@@ -399,19 +439,20 @@ class DataInterface {
         chunkToErase = bytesToSkip - this.tempCounter;
       }
       this.incrementPointers(chunkToErase);
-      this.popBuffer();
-      this.tempCounter += chunkToErase;
+      await this.popBuffer();
+    this.tempCounter += chunkToErase;
     }
     this.tempCounter = INITIAL_COUNTER;
     return true;
   }
-
+  // 当前块的剩余字节
   getRemainingBytes() {
     if (!this.currentBuffer)
       return 0;
     return this.currentBuffer.byteLength - this.internalPointer;
   }
 
+  // 计算八位位组中非零位的宽度，然后加一
   calculateOctetWidth() {
     var leadingZeroes = 0;
     var zeroMask = 0x80;
@@ -434,7 +475,8 @@ class DataInterface {
     //this.popBuffer();
   }
 
-  readUnsignedInt(size) {
+  // 读取size字节数的无符号整数
+  async readUnsignedInt(size) {
     if (!this.currentBuffer)// if we run out of data return null
       return null; //Nothing to parse
     //need to fix overflow for 64bit unsigned int
@@ -449,14 +491,14 @@ class DataInterface {
     while (this.tempCounter < size) {
       if (!this.currentBuffer)// if we run out of data return null
         return null; //Nothing to parse
-      b = this.readByte();
+      b = await this.readByte();
       if (this.tempCounter === 0 && b < 0) {
         console.warn("invalid integer value");
       }
       this.tempResult <<= 8;
       this.tempResult |= b;
-      this.popBuffer();
-      this.tempCounter++;
+      await this.popBuffer();
+    this.tempCounter++;
     }
 
     //clear the temp resut
@@ -467,7 +509,9 @@ class DataInterface {
     return result;
   }
 
-  readSignedInt(size) {
+  // 读入size字节数的有符号整数，返回读到的字节二进制
+  // 修改tempCounter，存入tempResult，然后清空
+  async readSignedInt(size) {
     if (!this.currentBuffer)// if we run out of data return null
       return null; //Nothing to parse
     //need to fix overflow for 64bit unsigned int
@@ -483,13 +527,13 @@ class DataInterface {
       if (!this.currentBuffer)// if we run out of data return null
         return null; //Nothing to parse
       if (this.tempCounter === 0)
-        b = this.readByte();
+        b = await this.readByte();
       else
-        b = this.readSignedByte();
+        b = await this.readSignedByte();
 
       this.tempResult <<= 8;
       this.tempResult |= b;
-      this.popBuffer();
+      await this.popBuffer();
       this.tempCounter++;
     }
 
@@ -501,7 +545,8 @@ class DataInterface {
     return result;
   }
 
-  readString(size) {
+  // 读入size字节数的字符串，返回字符串
+  async readString(size) {
     //console.log("reading string");
     if (!this.tempString)
       this.tempString = '';
@@ -519,9 +564,9 @@ class DataInterface {
       }
 
       //this.tempString += String.fromCharCode(this.readByte());
-      tempString += String.fromCharCode(this.readByte());
+      tempString += String.fromCharCode(await this.readByte());
 
-      this.popBuffer();
+      await this.popBuffer();
 
       this.tempCounter++;
     }
@@ -535,7 +580,7 @@ class DataInterface {
     return retString;
   }
 
-  readFloat(size) {
+  async readFloat(size) {
     if (size === 8) {
 
 
@@ -557,11 +602,11 @@ class DataInterface {
 
 
 
-        b = this.readByte();
+        b = await this.readByte();
 
         this.tempFloat64.setUint8(this.tempCounter, b);
 
-        this.popBuffer();
+        await this.popBuffer();
 
         this.tempCounter++;
       }
@@ -589,11 +634,11 @@ class DataInterface {
 
 
 
-        b = this.readByte();
+        b = await this.readByte();
 
         this.tempFloat32.setUint8(this.tempCounter, b);
 
-        this.popBuffer();
+        await this.popBuffer();
 
         this.tempCounter++;
       }
@@ -616,7 +661,7 @@ class DataInterface {
    * @param {number} length Length of bytes to read
    * @returns {ArrayBuffer} the read data
    */
-  getBinary(length) {
+  async getBinary(length) {
 
 
     if (!this.currentBuffer)// if we run out of data return null
@@ -636,7 +681,7 @@ class DataInterface {
       var newBuffer = this.currentBuffer.buffer.slice(this.internalPointer, this.internalPointer + length);
 
       this.incrementPointers(length);
-      this.popBuffer();
+      await this.popBuffer();
       return newBuffer;
 
     }
@@ -686,7 +731,7 @@ class DataInterface {
 
 
 
-      this.popBuffer();
+      await this.popBuffer();
 
 
       this.tempCounter += bytesToCopy;

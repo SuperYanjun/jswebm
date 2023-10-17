@@ -9,17 +9,17 @@ class BlockGroup {
     this.currentElement = null;
   }
 
-  load() {
+  async load() {
     var end = this.end;
     while (this.dataInterface.offset < end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
       switch (this.currentElement.id) {
         case 0xA1: //Block
-          var block = this.dataInterface.getBinary(this.currentElement.size);
+          var block = await this.dataInterface.getBinary(this.currentElement.size);
           if (block !== null)
             block;
           //this.docTypeReadVersion = docTypeReadVersion;
@@ -27,21 +27,21 @@ class BlockGroup {
             return null;
           break;
         case 0x9b: //BlockDuration
-          var blockDuration = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var blockDuration = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (blockDuration !== null)
             this.blockDuration = blockDuration;
           else
             return null;
           break;
         case 0xFB: //ReferenceBlock
-          var referenceBlock = this.dataInterface.readSignedInt(this.currentElement.size);
+          var referenceBlock = await this.dataInterface.readSignedInt(this.currentElement.size);
           if (referenceBlock !== null)
             this.referenceBlock = referenceBlock;
           else
             return null;
           break;
         case 0x75A2: //DiscardPadding
-          var discardPadding = this.dataInterface.readSignedInt(this.currentElement.size);
+          var discardPadding = await this.dataInterface.readSignedInt(this.currentElement.size);
           if (discardPadding !== null)
             this.discardPadding = discardPadding;
           else

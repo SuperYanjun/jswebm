@@ -10,17 +10,17 @@ class Seek {
     this.seekPosition = -1;
   }
 
-  load() {
+  async load() {
     while (this.dataInterface.offset < this.end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
 
       switch (this.currentElement.id) {
         case 0x53AB: { // SeekId
-          const seekId = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const seekId = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (seekId !== null) {
             this.seekId = seekId;
           } else {
@@ -29,7 +29,7 @@ class Seek {
           break;
         }
         case 0x53AC: { // SeekPosition 
-          const seekPosition = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          const seekPosition = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (seekPosition !== null) {
             this.seekPosition = seekPosition;
           } else {
@@ -38,7 +38,7 @@ class Seek {
           break;
         }
         case 0xbf: // CRC-32
-          var crc = this.dataInterface.getBinary(this.currentElement.size);
+          var crc = await this.dataInterface.getBinary(this.currentElement.size);
           if (crc !== null)
             crc;
           //this.docTypeReadVersion = docTypeReadVersion;

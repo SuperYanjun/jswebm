@@ -13,29 +13,29 @@ class AudioTrack extends Track {
     this.bitDepth = null;
   }
 
-  load() {
+  async load() {
     while (this.dataInterface.offset < this.end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null) return null;
       }
 
       switch (this.currentElement.id) {
         //TODO add duration and title
         case 0xB5: //Sample Frequency //TODO: MAKE FLOAT
-          var rate = this.dataInterface.readFloat(this.currentElement.size);
+          var rate = await this.dataInterface.readFloat(this.currentElement.size);
           if (rate !== null) this.rate = rate;
           else
             return null;
           break;
         case 0x9F: //Channels 
-          var channels = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var channels = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (channels !== null) this.channels = channels;
           else
             return null;
           break;
         case 0x6264: //bitDepth 
-          var bitDepth = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var bitDepth = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (bitDepth !== null)
             this.bitDepth = bitDepth;
           else
