@@ -1,24 +1,21 @@
 {
-  "name": "jswebm",
-  "version": "0.1.2",
+  "name": "mkv-demuxer",
+  "version": "0.0.1-6",
   "keywords": [
-    "webm",
-    "ogv.js",
-    "jscodec",
-    "jsvpx"
+    "mkv",
+    "webm"
   ],
   "scripts": {
     "test": "jest test/",
     "lint": "eslint src",
     "build": "webpack --config webpack.config.js"
   },
-  "author": "Brian Parra",
   "contributors": [],
   "license": "MIT",
-  "main": "dist/JsWebm.js",
+  "main": "dist/MkvDemuxer.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jscodec/jswebm"
+    "url": "https://github.com/SuperYanjun/jswebm"
   },
   "devDependencies": {
     "eslint": "^8.4.1",

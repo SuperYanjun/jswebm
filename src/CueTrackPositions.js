@@ -12,30 +12,30 @@ class CueTrackPositions {
     this.cueRelativePosition = 0;
   }
 
-  load() {
+  async load() {
     while (this.dataInterface.offset < this.end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
       switch (this.currentElement.id) {
         case 0xF7: // CueTrack
-          var cueTrack = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var cueTrack = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (cueTrack !== null)
             this.cueTrack = cueTrack;
           else
             return null;
           break;
         case 0xF1: // Cue ClusterPosition 
-          var cueClusterPosition = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var cueClusterPosition = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (cueClusterPosition !== null)
             this.cueClusterPosition = cueClusterPosition;
           else
             return null;
           break;
         case 0xF0: // CueRelativePosition
-          var cueRelativePosition = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var cueRelativePosition = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (cueRelativePosition !== null)
             this.cueRelativePosition = cueRelativePosition;
           else

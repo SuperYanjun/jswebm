@@ -26,7 +26,7 @@ class Cluster {
     this.tempElementHeader.reset();
     this.tempBlock = new SimpleBlock();
     this.blockGroups = [];
-    //this.demuxer.loadedMetadata = true; // Testing only
+    //this.demuxer.isMetaLoaded = true; // Testing only
     return true;
   }
 
@@ -38,17 +38,17 @@ class Cluster {
 
   }
 
-  load() {
+  async load() {
     var status = false;
     while (this.dataInterface.offset < this.end) {
       if (!this.tempElementHeader.status) {
-        this.dataInterface.peekAndSetElement(this.tempElementHeader);
+        await this.dataInterface.peekAndSetElement(this.tempElementHeader);
         if (!this.tempElementHeader.status)
           return null;
       }
       switch (this.tempElementHeader.id) {
         case 0xE7: // TimeCode
-          var timeCode = this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
+          var timeCode = await this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
           if (timeCode !== null) {
             this.timeCode = timeCode;
           } else {
@@ -65,7 +65,7 @@ class Cluster {
               this.dataInterface,
               this
             );
-          this.tempBlock.load();
+          await this.tempBlock.load();
           if (!this.tempBlock.loaded)
           return 0;
           // else
@@ -80,7 +80,7 @@ class Cluster {
           }
           break;
         case 0xA7: // Position
-          var timeCode = this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
+          var timeCode = await this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
           if (timeCode !== null) {
             this.timeCode = timeCode;
           } else {
@@ -90,21 +90,21 @@ class Cluster {
         case 0xA0: // Block Group
           if (!this.currentBlockGroup)
             this.currentBlockGroup = new BlockGroup(this.tempElementHeader.getData(), this.dataInterface);
-          this.currentBlockGroup.load();
+            await this.currentBlockGroup.load();
           if (!this.currentBlockGroup.loaded)
             return false;
           this.blockGroups.push(this.currentTag);
           this.currentBlockGroup = null;
           break;
         case 0xAB: // PrevSize
-          var prevSize = this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
+          var prevSize = await this.dataInterface.readUnsignedInt(this.tempElementHeader.size);
           if (prevSize !== null)
             this.prevSize = prevSize;
           else
             return null;
           break;
         case 0xBF: // CRC-32
-          var crc = this.dataInterface.getBinary(this.tempElementHeader.size);
+          var crc = await this.dataInterface.getBinary(this.tempElementHeader.size);
           if (crc !== null)
             crc;
           else

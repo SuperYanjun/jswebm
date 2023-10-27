@@ -15,11 +15,11 @@ class SeekHead {
     this.currentElement = null;
   }
 
-  load() {
+  async load() {
     var end = this.end;
     while (this.dataInterface.offset < end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
@@ -27,14 +27,14 @@ class SeekHead {
         case 0x4DBB: // Seek
           if (!this.tempEntry)
             this.tempEntry = new Seek(this.currentElement, this.dataInterface);
-          this.tempEntry.load();
+          await this.tempEntry.load();
           if (!this.tempEntry.loaded)
             return;
           else
             this.entries.push(this.tempEntry);
           break;
         case 0xbf: // CRC-32
-          var crc = this.dataInterface.getBinary(this.currentElement.size);
+          var crc = await this.dataInterface.getBinary(this.currentElement.size);
           if (crc !== null)
             crc;
           // this.docTypeReadVersion = docTypeReadVersion;

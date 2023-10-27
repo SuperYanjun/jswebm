@@ -13,11 +13,11 @@ class Cues {
     this.currentElement = null;
   }
 
-  load() {
+  async load() {
     const end = this.end;
     while (this.dataInterface.offset < end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
@@ -25,14 +25,14 @@ class Cues {
         case 0xBB: //CuePoint
           if (!this.tempEntry)
             this.tempEntry = new CuePoint(this.currentElement, this.dataInterface);
-          this.tempEntry.load();
+          await this.tempEntry.load();
           if (!this.tempEntry.loaded)
             return;
           else
             this.entries.push(this.tempEntry);
           break;
         case 0xbf: //CRC-32
-          var crc = this.dataInterface.getBinary(this.currentElement.size);
+          var crc = await this.dataInterface.getBinary(this.currentElement.size);
           if (crc !== null)
             crc;
           //this.docTypeReadVersion = docTypeReadVersion;
@@ -107,11 +107,11 @@ class CuePoint {
     this.cueTrackPositions = null;
   }
 
-  load() {
+  async load() {
     const end = this.end;
     while (this.dataInterface.offset < end) {
       if (!this.currentElement) {
-        this.currentElement = this.dataInterface.peekElement();
+        this.currentElement = await this.dataInterface.peekElement();
         if (this.currentElement === null)
           return null;
       }
@@ -119,12 +119,12 @@ class CuePoint {
         case 0xB7: // Cue Track Positions
           if (!this.cueTrackPositions)
             this.cueTrackPositions = new CueTrackPositions(this.currentElement, this.dataInterface);
-          this.cueTrackPositions.load();
+          await this.cueTrackPositions.load();
           if (!this.cueTrackPositions.loaded)
             return;
           break;
         case 0xB3: // Cue Time 
-          var cueTime = this.dataInterface.readUnsignedInt(this.currentElement.size);
+          var cueTime = await this.dataInterface.readUnsignedInt(this.currentElement.size);
           if (cueTime !== null)
             this.cueTime = cueTime;
           else
